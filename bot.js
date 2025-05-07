@@ -94,7 +94,7 @@ client.on('ready', async () => {
             const uniqueLeaderboardData = Object.values(aggregatedData);
             console.log('Aggregated leaderboard data:', uniqueLeaderboardData);
 
-            // Update nicknames and collect display names
+            // Collect display names without setting nicknames
             const leaderboardWithDisplayNames = [];
             for (const entry of uniqueLeaderboardData) {
                 try {
@@ -106,13 +106,6 @@ client.on('ready', async () => {
                         m => m.user.username.toLowerCase() === searchUsername.toLowerCase()
                     );
                     if (member) {
-                        const baseName = searchUsername;
-                        try {
-                            await member.setNickname(`${baseName} [Streak: ${entry.streak}]`);
-                            console.log(`Updated nickname for ${entry.username} to ${baseName} [Streak: ${entry.streak}]`);
-                        } catch (error) {
-                            console.error(`Error updating nickname for ${entry.username}:`, error.message);
-                        }
                         leaderboardWithDisplayNames.push({
                             ...entry,
                             displayName: member.displayName || entry.username
