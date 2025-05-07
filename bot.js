@@ -23,7 +23,7 @@ const client = new Client({
 
 const CHANNEL_ID = '1369351236327051456'; // Leaderboard channel ID
 const GUILD_ID = '1270161104357560431'; // Server (guild) ID
-const BACKEND_URL = 'https://sr-tracker-backend.onrender.com/api/leaderboard';
+const BACKEND_URL = 'https://sr-tracker-backend.onrender.com/api/streaks'; // Updated to correct endpoint
 
 client.on('ready', () => {
     console.log(`Logged in as ${client.user.tag}`);
@@ -47,7 +47,7 @@ client.on('ready', () => {
             // Fetch the leaderboard data
             let leaderboardData;
             try {
-                const response = await axios.get(BACKEND_URL, { timeout: 10000 }); // 10-second timeout
+                const response = await axios.get(BACKEND_URL, { timeout: 15000 }); // Increased timeout to 15s
                 leaderboardData = response.data;
                 console.log('Fetched leaderboard data:', leaderboardData);
             } catch (error) {
