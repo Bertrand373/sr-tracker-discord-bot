@@ -23,7 +23,7 @@ const client = new Client({
 
 const CHANNEL_ID = '1369351236327051456'; // Leaderboard channel ID
 const GUILD_ID = '1270161104357560431'; // Server (guild) ID
-const BACKEND_URL = 'https://sr-tracker-backend.onrender.com/api/streaks'; // Updated to correct endpoint
+const BACKEND_URL = 'https://sr-tracker-backend.onrender.com/api/streaks';
 
 client.on('ready', () => {
     console.log(`Logged in as ${client.user.tag}`);
@@ -47,7 +47,7 @@ client.on('ready', () => {
             // Fetch the leaderboard data
             let leaderboardData;
             try {
-                const response = await axios.get(BACKEND_URL, { timeout: 15000 }); // Increased timeout to 15s
+                const response = await axios.get(BACKEND_URL, { timeout: 15000 });
                 leaderboardData = response.data;
                 console.log('Fetched leaderboard data:', leaderboardData);
             } catch (error) {
@@ -62,9 +62,15 @@ client.on('ready', () => {
             // Update nicknames for all users in the leaderboard data
             for (const entry of leaderboardData) {
                 try {
-                    const member = guild.members.cache.find(m => m.user.tag === entry.username);
+                    // Normalize username: remove @ if present
+                    let searchUsername = entry.username.startsWith('@') ? entry.username.slice(1) : entry.username;
+
+                    // Find member by username
+                    const member = guild.members.cache.find(
+                        m => m.user.username.toLowerCase() === searchUsername.toLowerCase()
+                    );
                     if (member) {
-                        const baseName = entry.username.split('#')[0]; // Extract username without discriminator
+                        const baseName = searchUsername;
                         await member.setNickname(`${baseName} [Streak: ${entry.streak}]`);
                         console.log(`Updated nickname for ${entry.username} to ${baseName} [Streak: ${entry.streak}]`);
                     } else {
