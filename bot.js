@@ -29,7 +29,7 @@ client.on('ready', () => {
     console.log(`Logged in as ${client.user.tag}`);
 
     // Schedule the leaderboard update to run every 5 minutes for testing
-    schedule.scheduleJob('0 * * * *', async () => {
+    schedule.scheduleJob('*/5 * * * *', async () => {
         console.log('Starting scheduled leaderboard update...');
         try {
             const guild = client.guilds.cache.get(GUILD_ID);
