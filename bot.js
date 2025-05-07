@@ -20,7 +20,7 @@ client.on('ready', () => {
     console.log(`Logged in as ${client.user.tag}`);
 
     // Schedule the leaderboard update to run daily at midnight
-    schedule.scheduleJob('0 0 * * *', async () => {
+    schedule.scheduleJob('*/5 * * * *', async () => {
         try {
             const guild = client.guilds.cache.get(GUILD_ID);
             if (!guild) {
@@ -83,3 +83,4 @@ client.on('ready', () => {
 });
 
 client.login(process.env.DISCORD_BOT_TOKEN);
+
