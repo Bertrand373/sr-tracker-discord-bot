@@ -59,7 +59,8 @@ client.on('ready', () => {
                 return;
             }
 
-            // Update nicknames for all users in the leaderboard data
+            // Update nicknames and collect display names
+            const leaderboardWithDisplayNames = [];
             for (const entry of leaderboardData) {
                 try {
                     // Normalize username: remove @ if present
@@ -73,15 +74,27 @@ client.on('ready', () => {
                         const baseName = searchUsername;
                         await member.setNickname(`${baseName} [Streak: ${entry.streak}]`);
                         console.log(`Updated nickname for ${entry.username} to ${baseName} [Streak: ${entry.streak}]`);
+                        leaderboardWithDisplayNames.push({
+                            ...entry,
+                            displayName: member.displayName || entry.username
+                        });
                     } else {
                         console.log(`Member ${entry.username} not found in guild`);
+                        leaderboardWithDisplayNames.push({
+                            ...entry,
+                            displayName: entry.username
+                        });
                     }
                 } catch (error) {
                     console.error(`Error updating nickname for ${entry.username}:`, error.message);
+                    leaderboardWithDisplayNames.push({
+                        ...entry,
+                        displayName: entry.username
+                    });
                 }
             }
 
-            // Format and post the leaderboard
+            // Format and post the leaderboard using display names
             if (!leaderboardData || leaderboardData.length === 0) {
                 await channel.send('No leaderboard data available at this time.');
                 console.log('No leaderboard data to post');
@@ -89,8 +102,8 @@ client.on('ready', () => {
             }
 
             let leaderboardMessage = '🏆 **Rossbased SR Tracker Leaderboard** 🏆\n\n';
-            leaderboardData.forEach((entry, index) => {
-                leaderboardMessage += `${index + 1}. ${entry.username} - ${entry.streak} days\n`;
+            leaderboardWithDisplayNames.forEach((entry, index) => {
+                leaderboardMessage += `${index + 1}. ${entry.displayName} - ${entry.streak} days\n`;
             });
             leaderboardMessage += `\nUpdated on ${new Date().toLocaleDateString()}`;
 
