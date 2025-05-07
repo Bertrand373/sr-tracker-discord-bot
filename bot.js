@@ -74,7 +74,7 @@ client.on('ready', async () => {
             const leaderboardWithDisplayNames = [];
             for (const entry of leaderboardData) {
                 try {
-                    // Normalize username: remove @ if present
+                    // Normalize username: remove @ and convert to lowercase for comparison
                     let searchUsername = entry.username.startsWith('@') ? entry.username.slice(1) : entry.username;
 
                     // Find member by username
@@ -83,21 +83,26 @@ client.on('ready', async () => {
                     );
                     if (member) {
                         const baseName = searchUsername;
-                        await member.setNickname(`${baseName} [Streak: ${entry.streak}]`);
-                        console.log(`Updated nickname for ${entry.username} to ${baseName} [Streak: ${entry.streak}]`);
+                        try {
+                            await member.setNickname(`${baseName} [Streak: ${entry.streak}]`);
+                            console.log(`Updated nickname for ${entry.username} to ${baseName} [Streak: ${entry.streak}]`);
+                        } catch (error) {
+                            console.error(`Error updating nickname for ${entry.username}:`, error.message);
+                        }
                         leaderboardWithDisplayNames.push({
                             ...entry,
                             displayName: member.displayName || entry.username
                         });
                     } else {
-                        console.log(`Member ${entry.username} not found in guild`);
+                        console.log(`Member ${entry.username} not found in guild; available usernames:`, 
+                            guild.members.cache.map(m => `${m.user.username} (display: ${m.displayName})`).join(', '));
                         leaderboardWithDisplayNames.push({
                             ...entry,
                             displayName: entry.username
                         });
                     }
                 } catch (error) {
-                    console.error(`Error updating nickname for ${entry.username}:`, error.message);
+                    console.error(`Error processing ${entry.username}:`, error.message);
                     leaderboardWithDisplayNames.push({
                         ...entry,
                         displayName: entry.username
