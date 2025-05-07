@@ -25,8 +25,19 @@ const CHANNEL_ID = '1369351236327051456'; // Leaderboard channel ID
 const GUILD_ID = '1270161104357560431'; // Server (guild) ID
 const BACKEND_URL = 'https://sr-tracker-backend.onrender.com/api/streaks';
 
-client.on('ready', () => {
+client.on('ready', async () => {
     console.log(`Logged in as ${client.user.tag}`);
+
+    // Fetch guild members to populate cache
+    try {
+        const guild = client.guilds.cache.get(GUILD_ID);
+        if (guild) {
+            await guild.members.fetch();
+            console.log('Guild members fetched successfully');
+        }
+    } catch (error) {
+        console.error('Error fetching guild members:', error.message);
+    }
 
     // Schedule the leaderboard update to run every 5 minutes for testing
     schedule.scheduleJob('*/5 * * * *', async () => {
