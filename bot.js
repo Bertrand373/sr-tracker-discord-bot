@@ -3,7 +3,7 @@ const { Client, IntentsBitField } = require('discord.js');
 const schedule = require('node-schedule');
 const axios = require('axios');
 
-// Handle uncaught exceptions and promise rejections to prevent crashes
+// Handle uncaught exceptions and promise rejections
 process.on('uncaughtException', (error) => {
     console.error('Uncaught Exception:', error.message, error.stack);
 });
@@ -39,7 +39,7 @@ client.on('ready', async () => {
         console.error('Error fetching guild members:', error.message);
     }
 
-    // Schedule the leaderboard update to run every 5 minutes for testing
+    // Schedule the leaderboard update every 5 minutes
     schedule.scheduleJob('*/5 * * * *', async () => {
         console.log('Starting scheduled leaderboard update...');
         try {
@@ -55,7 +55,7 @@ client.on('ready', async () => {
                 return;
             }
 
-            // Fetch the leaderboard data
+            // Fetch leaderboard data
             let leaderboardData;
             try {
                 const response = await axios.get(BACKEND_URL, { timeout: 15000 });
@@ -70,11 +70,35 @@ client.on('ready', async () => {
                 return;
             }
 
+            // Aggregate streaks by username to eliminate duplicates
+            const aggregatedData = {};
+            for (const entry of leaderboardData) {
+                const username = entry.username.toLowerCase();
+                if (!aggregatedData[username]) {
+                    aggregatedData[username] = {
+                        username: entry.username,
+                        streak: entry.streak,
+                        timestamp: entry.timestamp
+                    };
+                } else {
+                    // Keep the latest entry based on timestamp
+                    if (new Date(entry.timestamp) > new Date(aggregatedData[username].timestamp)) {
+                        aggregatedData[username] = {
+                            username: entry.username,
+                            streak: entry.streak,
+                            timestamp: entry.timestamp
+                        };
+                    }
+                }
+            }
+            const uniqueLeaderboardData = Object.values(aggregatedData);
+            console.log('Aggregated leaderboard data:', uniqueLeaderboardData);
+
             // Update nicknames and collect display names
             const leaderboardWithDisplayNames = [];
-            for (const entry of leaderboardData) {
+            for (const entry of uniqueLeaderboardData) {
                 try {
-                    // Normalize username: remove @ and convert to lowercase for comparison
+                    // Normalize username: remove @ and convert to lowercase
                     let searchUsername = entry.username.startsWith('@') ? entry.username.slice(1) : entry.username;
 
                     // Find member by username
@@ -111,7 +135,7 @@ client.on('ready', async () => {
             }
 
             // Format and post the leaderboard using display names
-            if (!leaderboardData || leaderboardData.length === 0) {
+            if (!leaderboardWithDisplayNames || leaderboardWithDisplayNames.length === 0) {
                 await channel.send('No leaderboard data available at this time.');
                 console.log('No leaderboard data to post');
                 return;
@@ -123,7 +147,7 @@ client.on('ready', async () => {
             });
             leaderboardMessage += `\nUpdated on ${new Date().toLocaleDateString()}`;
 
-            // Delete the previous leaderboard message if it exists
+            // Delete previous leaderboard message
             try {
                 const messages = await channel.messages.fetch({ limit: 10 });
                 const botMessages = messages.filter(msg => msg.author.id === client.user.id);
