@@ -25,19 +25,26 @@ const CHANNEL_ID = process.env.CHANNEL_ID || '1369351236327051456';
 const GUILD_ID = process.env.GUILD_ID || '1270161104357560431';
 const BACKEND_URL = 'https://sr-tracker-backend.onrender.com/api/streaks';
 
+let isClientReady = false;
+
 // Leaderboard update function
 async function updateLeaderboard() {
+    if (!isClientReady) {
+        console.error('Client not ready yet. Please wait for bot initialization.');
+        return;
+    }
+
     console.log('Starting leaderboard update...');
     try {
         const guild = client.guilds.cache.get(GUILD_ID);
         if (!guild) {
-            console.error('Guild not found with ID:', GUILD_ID);
+            console.error(`Guild not found with ID: ${GUILD_ID}. Available guilds:`, client.guilds.cache.map(g => ({ id: g.id, name: g.name })));
             return;
         }
 
         const channel = guild.channels.cache.get(CHANNEL_ID);
         if (!channel) {
-            console.error('Leaderboard channel not found with ID:', CHANNEL_ID);
+            console.error(`Channel not found with ID: ${CHANNEL_ID}. Available channels:`, guild.channels.cache.map(c => ({ id: c.id, name: c.name })));
             return;
         }
 
@@ -121,10 +128,14 @@ client.on('ready', async () => {
         if (guild) {
             await guild.members.fetch();
             console.log('Guild members fetched successfully');
+        } else {
+            console.error(`Guild not found on ready with ID: ${GUILD_ID}`);
         }
     } catch (error) {
         console.error('Error fetching guild members:', error.message);
     }
+
+    isClientReady = true;
 
     // Schedule the leaderboard update hourly
     schedule.scheduleJob('0 * * * *', updateLeaderboard);
