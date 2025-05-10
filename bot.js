@@ -21,8 +21,8 @@ const client = new Client({
     ]
 });
 
-const CHANNEL_ID = '1369351236327051456'; // Leaderboard channel ID
-const GUILD_ID = '1270161104357560431'; // Server (guild) ID
+const CHANNEL_ID = process.env.CHANNEL_ID || '1369351236327051456';
+const GUILD_ID = process.env.GUILD_ID || '1270161104357560431';
 const BACKEND_URL = 'https://sr-tracker-backend.onrender.com/api/streaks';
 
 client.on('ready', async () => {
@@ -39,7 +39,7 @@ client.on('ready', async () => {
         console.error('Error fetching guild members:', error.message);
     }
 
-    // Schedule the leaderboard update every 5 minutes
+    // Schedule the leaderboard update hourly
     schedule.scheduleJob('0 * * * *', async () => {
         console.log('Starting scheduled leaderboard update...');
         try {
@@ -67,57 +67,22 @@ client.on('ready', async () => {
                     console.error('Backend API response status:', error.response.status);
                     console.error('Backend API response data:', error.response.data);
                 }
+                await channel.send('⚠️ Error fetching leaderboard data. Please try again later.');
                 return;
             }
 
-            // Aggregate streaks by username to eliminate duplicates
-            const aggregatedData = {};
-            for (const entry of leaderboardData) {
-                const username = entry.username.toLowerCase();
-                if (!aggregatedData[username]) {
-                    aggregatedData[username] = {
-                        username: entry.username,
-                        streak: entry.streak,
-                        timestamp: entry.timestamp
-                    };
-                } else {
-                    // Keep the latest entry based on timestamp
-                    if (new Date(entry.timestamp) > new Date(aggregatedData[username].timestamp)) {
-                        aggregatedData[username] = {
-                            username: entry.username,
-                            streak: entry.streak,
-                            timestamp: entry.timestamp
-                        };
-                    }
-                }
-            }
-            const uniqueLeaderboardData = Object.values(aggregatedData);
-            console.log('Aggregated leaderboard data:', uniqueLeaderboardData);
-
-            // Collect display names without setting nicknames
+            // Collect display names
             const leaderboardWithDisplayNames = [];
-            for (const entry of uniqueLeaderboardData) {
+            for (const entry of leaderboardData) {
                 try {
-                    // Normalize username: remove @ and convert to lowercase
                     let searchUsername = entry.username.startsWith('@') ? entry.username.slice(1) : entry.username;
-
-                    // Find member by username
                     const member = guild.members.cache.find(
                         m => m.user.username.toLowerCase() === searchUsername.toLowerCase()
                     );
-                    if (member) {
-                        leaderboardWithDisplayNames.push({
-                            ...entry,
-                            displayName: member.displayName || entry.username
-                        });
-                    } else {
-                        console.log(`Member ${entry.username} not found in guild; available usernames:`, 
-                            guild.members.cache.map(m => `${m.user.username} (display: ${m.displayName})`).join(', '));
-                        leaderboardWithDisplayNames.push({
-                            ...entry,
-                            displayName: entry.username
-                        });
-                    }
+                    leaderboardWithDisplayNames.push({
+                        ...entry,
+                        displayName: member ? member.displayName : entry.username
+                    });
                 } catch (error) {
                     console.error(`Error processing ${entry.username}:`, error.message);
                     leaderboardWithDisplayNames.push({
@@ -127,18 +92,18 @@ client.on('ready', async () => {
                 }
             }
 
-            // Format and post the leaderboard using display names
+            // Format and post the leaderboard
             if (!leaderboardWithDisplayNames || leaderboardWithDisplayNames.length === 0) {
-                await channel.send('No leaderboard data available at this time.');
+                await channel.send('🏆 **Rossbased SR Tracker Leaderboard** 🏆\n\nNo streaks recorded yet. Join the leaderboard in the SR Tracker app!');
                 console.log('No leaderboard data to post');
                 return;
             }
 
             let leaderboardMessage = '🏆 **Rossbased SR Tracker Leaderboard** 🏆\n\n';
-            leaderboardWithDisplayNames.forEach((entry, index) => {
+            leaderboardWithDisplayNames.slice(0, 10).forEach((entry, index) => {
                 leaderboardMessage += `${index + 1}. ${entry.displayName} - ${entry.streak} days\n`;
             });
-            leaderboardMessage += `\nUpdated on ${new Date().toLocaleDateString()}`;
+            leaderboardMessage += `\nUpdated on ${new Date().toLocaleString()} 💪`;
 
             // Delete previous leaderboard message
             try {
