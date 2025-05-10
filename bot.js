@@ -25,6 +25,93 @@ const CHANNEL_ID = process.env.CHANNEL_ID || '1369351236327051456';
 const GUILD_ID = process.env.GUILD_ID || '1270161104357560431';
 const BACKEND_URL = 'https://sr-tracker-backend.onrender.com/api/streaks';
 
+// Leaderboard update function
+async function updateLeaderboard() {
+    console.log('Starting leaderboard update...');
+    try {
+        const guild = client.guilds.cache.get(GUILD_ID);
+        if (!guild) {
+            console.error('Guild not found with ID:', GUILD_ID);
+            return;
+        }
+
+        const channel = guild.channels.cache.get(CHANNEL_ID);
+        if (!channel) {
+            console.error('Leaderboard channel not found with ID:', CHANNEL_ID);
+            return;
+        }
+
+        // Fetch leaderboard data
+        let leaderboardData;
+        try {
+            const response = await axios.get(BACKEND_URL, { timeout: 15000 });
+            leaderboardData = response.data;
+            console.log('Fetched leaderboard data:', leaderboardData);
+        } catch (error) {
+            console.error('Error fetching leaderboard data:', error.message);
+            if (error.response) {
+                console.error('Backend API response status:', error.response.status);
+                console.error('Backend API response data:', error.response.data);
+            }
+            await channel.send('⚠️ Error fetching leaderboard data. Please try again later.');
+            return;
+        }
+
+        // Collect display names
+        const leaderboardWithDisplayNames = [];
+        for (const entry of leaderboardData) {
+            try {
+                let searchUsername = entry.username.startsWith('@') ? entry.username.slice(1) : entry.username;
+                const member = guild.members.cache.find(
+                    m => m.user.username.toLowerCase() === searchUsername.toLowerCase()
+                );
+                leaderboardWithDisplayNames.push({
+                    ...entry,
+                    displayName: member ? member.displayName : entry.username
+                });
+            } catch (error) {
+                console.error(`Error processing ${entry.username}:`, error.message);
+                leaderboardWithDisplayNames.push({
+                    ...entry,
+                    displayName: entry.username
+                });
+            }
+        }
+
+        // Format and post the leaderboard
+        if (!leaderboardWithDisplayNames || leaderboardWithDisplayNames.length === 0) {
+            await channel.send('🏆 **Rossbased SR Tracker Leaderboard** 🏆\n\nNo streaks recorded yet. Join the leaderboard in the SR Tracker app!');
+            console.log('No leaderboard data to post');
+            return;
+        }
+
+        let leaderboardMessage = '🏆 **Rossbased SR Tracker Leaderboard** 🏆\n\n';
+        leaderboardWithDisplayNames.slice(0, 10).forEach((entry, index) => {
+            const rankEmoji = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🔢';
+            leaderboardMessage += `${rankEmoji} ${index + 1}. ${entry.displayName} - ${entry.streak} days\n`;
+        });
+        leaderboardMessage += `\nUpdated on ${new Date().toLocaleString()} 🔥`;
+
+        // Delete previous leaderboard message
+        try {
+            const messages = await channel.messages.fetch({ limit: 10 });
+            const botMessages = messages.filter(msg => msg.author.id === client.user.id);
+            if (botMessages.size > 0) {
+                await Promise.all(botMessages.map(msg => msg.delete()));
+                console.log('Deleted previous leaderboard messages');
+            }
+        } catch (error) {
+            console.error('Error deleting previous messages:', error.message);
+        }
+
+        // Send the new leaderboard
+        await channel.send(leaderboardMessage);
+        console.log('Leaderboard updated successfully');
+    } catch (error) {
+        console.error('Error in leaderboard update:', error.message, error.stack);
+    }
+}
+
 client.on('ready', async () => {
     console.log(`Logged in as ${client.user.tag}`);
 
@@ -40,90 +127,7 @@ client.on('ready', async () => {
     }
 
     // Schedule the leaderboard update hourly
-    schedule.scheduleJob('0 * * * *', async () => {
-        console.log('Starting scheduled leaderboard update...');
-        try {
-            const guild = client.guilds.cache.get(GUILD_ID);
-            if (!guild) {
-                console.error('Guild not found with ID:', GUILD_ID);
-                return;
-            }
-
-            const channel = guild.channels.cache.get(CHANNEL_ID);
-            if (!channel) {
-                console.error('Leaderboard channel not found with ID:', CHANNEL_ID);
-                return;
-            }
-
-            // Fetch leaderboard data
-            let leaderboardData;
-            try {
-                const response = await axios.get(BACKEND_URL, { timeout: 15000 });
-                leaderboardData = response.data;
-                console.log('Fetched leaderboard data:', leaderboardData);
-            } catch (error) {
-                console.error('Error fetching leaderboard data:', error.message);
-                if (error.response) {
-                    console.error('Backend API response status:', error.response.status);
-                    console.error('Backend API response data:', error.response.data);
-                }
-                await channel.send('⚠️ Error fetching leaderboard data. Please try again later.');
-                return;
-            }
-
-            // Collect display names
-            const leaderboardWithDisplayNames = [];
-            for (const entry of leaderboardData) {
-                try {
-                    let searchUsername = entry.username.startsWith('@') ? entry.username.slice(1) : entry.username;
-                    const member = guild.members.cache.find(
-                        m => m.user.username.toLowerCase() === searchUsername.toLowerCase()
-                    );
-                    leaderboardWithDisplayNames.push({
-                        ...entry,
-                        displayName: member ? member.displayName : entry.username
-                    });
-                } catch (error) {
-                    console.error(`Error processing ${entry.username}:`, error.message);
-                    leaderboardWithDisplayNames.push({
-                        ...entry,
-                        displayName: entry.username
-                    });
-                }
-            }
-
-            // Format and post the leaderboard
-            if (!leaderboardWithDisplayNames || leaderboardWithDisplayNames.length === 0) {
-                await channel.send('🏆 **Rossbased SR Tracker Leaderboard** 🏆\n\nNo streaks recorded yet. Join the leaderboard in the SR Tracker app!');
-                console.log('No leaderboard data to post');
-                return;
-            }
-
-            let leaderboardMessage = '🏆 **Rossbased SR Tracker Leaderboard** 🏆\n\n';
-            leaderboardWithDisplayNames.slice(0, 10).forEach((entry, index) => {
-                leaderboardMessage += `${index + 1}. ${entry.displayName} - ${entry.streak} days\n`;
-            });
-            leaderboardMessage += `\nUpdated on ${new Date().toLocaleString()} 💪`;
-
-            // Delete previous leaderboard message
-            try {
-                const messages = await channel.messages.fetch({ limit: 10 });
-                const botMessages = messages.filter(msg => msg.author.id === client.user.id);
-                if (botMessages.size > 0) {
-                    await Promise.all(botMessages.map(msg => msg.delete()));
-                    console.log('Deleted previous leaderboard messages');
-                }
-            } catch (error) {
-                console.error('Error deleting previous messages:', error.message);
-            }
-
-            // Send the new leaderboard
-            await channel.send(leaderboardMessage);
-            console.log('Leaderboard updated successfully');
-        } catch (error) {
-            console.error('Error in scheduled leaderboard update:', error.message, error.stack);
-        }
-    });
+    schedule.scheduleJob('0 * * * *', updateLeaderboard);
 });
 
 client.on('error', (error) => {
@@ -134,3 +138,6 @@ client.login(process.env.DISCORD_BOT_TOKEN).catch(error => {
     console.error('Failed to login to Discord:', error.message);
     process.exit(1);
 });
+
+// Export for manual triggering
+module.exports = { updateLeaderboard };
