@@ -26,11 +26,13 @@ const GUILD_ID = process.env.GUILD_ID || '1270161104357560431';
 const BACKEND_URL = 'https://sr-tracker-backend.onrender.com/api/streaks';
 
 let isClientReady = false;
+let pendingTriggers = [];
 
 // Leaderboard update function
 async function updateLeaderboard() {
     if (!isClientReady) {
-        console.error('Client not ready yet. Please wait for bot initialization.');
+        console.log('Client not ready, queuing leaderboard update...');
+        pendingTriggers.push(updateLeaderboard);
         return;
     }
 
@@ -136,6 +138,13 @@ client.on('ready', async () => {
     }
 
     isClientReady = true;
+
+    // Execute any pending triggers
+    while (pendingTriggers.length > 0) {
+        const trigger = pendingTriggers.shift();
+        console.log('Executing queued leaderboard update...');
+        await trigger();
+    }
 
     // Schedule the leaderboard update hourly
     schedule.scheduleJob('0 * * * *', updateLeaderboard);
